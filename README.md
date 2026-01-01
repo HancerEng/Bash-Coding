@@ -34,21 +34,21 @@ Follow these steps to compile the source code into a runnable executable.
 Convert the .asm source file into an ELF object file:
 
 ```bash
-nasm -f elf32 transfer.asm -o transfer.o
+nasm -f elf32 example.asm -o example.o
 ```
 
 ### 2. Linking
 Link the object file to create the final Linux executable:
 
 ```bash
-ld -m elf_i386 transfer.o -o transfer
+ld -m elf_i386 example.o -o example
 ```
 
 ### 3. Inspection (Optional)
-To view the assembly instructions and "Log Dump" of the compiled object file:
+To view the assembly instructions and disassembled code of the compiled object file:
 
 ```bash
-objdump -d transfer.o
+objdump -d example.o
 ```
 
 ## 📝 License

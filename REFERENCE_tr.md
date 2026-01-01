@@ -60,7 +60,182 @@
 
 ---
 
-## x86 Linux Syscall Tablosu
+## Veri Türleri ve Bellek Boyutları
+
+### Boyut Referansı
+
+| Tür | NASM Direktifi | Boyut | Bit | Örnekler |
+|-----|---|---|---|---|
+| **Bayt** | `db` (define byte) | 1 bayt | 8 bit | `al`, `bl`, `cl` |
+| **Kelime** | `dw` (define word) | 2 bayt | 16 bit | `ax`, `bx`, `cx` |
+| **Çift Kelime** | `dd` (define doubleword) | 4 bayt | 32 bit | `eax`, `ebx`, `ecx` |
+| **Dörtlü Kelime** | `dq` (define quadword) | 8 bayt | 64 bit | İki 32-bit register |
+
+### Yaygın C Veri Türleri Assembly'de
+
+| C Türü | Boyut | Assembly Register | Not |
+|--------|------|---|---|
+| `char` | 1 bayt | `al`, `bl`, `cl`, `dl` | Tek bayt karakter |
+| `short` | 2 bayt | `ax`, `bx`, `cx`, `dx` | 16-bit tam sayı |
+| `int` | 4 bayt | `eax`, `ebx`, `ecx`, `edx` | 32-bit tam sayı |
+| `long` | 4 bayt | `eax`, `ebx`, `ecx`, `edx` | 32-bit'te int ile aynı |
+| `pointer` | 4 bayt | Herhangi 32-bit register | Bellek adresi |
+| `float` | 4 bayt | FPU registerleri | Kayan nokta (FPU gerekli) |
+| `double` | 8 bayt | İki register veya FPU | Çift hassasiyet float |
+
+### Assembly'de Bellek Tanımı
+
+```asm
+section .data
+    byte_val db 0x42           ; 1 bayt: 'B'
+    word_val dw 0x1234         ; 2 bayt: 0x1234
+    dword_val dd 0x12345678    ; 4 bayt: 0x12345678
+    
+    char_string db "Hello", 0  ; String (bayt dizisi)
+    array_bytes db 1, 2, 3, 4, 5  ; Birden çok bayt
+```
+
+### Değişken Tanımı Örnekleri
+
+```asm
+section .bss
+    buffer resb 1024           ; 1024 bayt ayır
+    numbers resw 100           ; 100 kelime ayır (200 bayt)
+    values resd 50             ; 50 çift kelime ayır (200 bayt)
+
+section .text
+    mov al, byte [buffer]      ; 1 bayt yükle
+    mov ax, word [buffer]      ; 2 bayt yükle (ax'e)
+    mov eax, dword [buffer]    ; 4 bayt yükle (eax'e)
+```
+
+---
+
+## Fonksiyon Çağırma Kuralı (CDECL - C Declaration)
+
+### ÖNEMLİ: Ters Sırada Argüman Geçişi
+
+Bir fonksiyonu veya syscall'ı çok argümanlı çağırırken, argümanlar stack'e **TERS SİRADA** push'lanır. Bu demektir:
+- **Son parametre önce push edilir**
+- **İlk parametre en son push edilir**
+- **Her push'ta stack pointer azalır**
+
+### Visual Stack Düzeni
+
+```
+Fonksiyon: mysyscall(arg1, arg2, arg3, arg4)
+
+Çağrıdan önce:
+    [ESP] -> boş stack alanı
+
+Argümanları Push'ledikten sonra (ters sırada):
+    [ESP + 16] -> arg1  (son push, argumentlerin üstü)
+    [ESP + 12] -> arg2
+    [ESP + 8]  -> arg3
+    [ESP + 4]  -> arg4  (ilk push, derinlikte)
+    [ESP]      -> dönüş adresi (CALL tarafından push'lanır)
+```
+
+### Örnek 1: Basit Fonksiyon Çağrısı
+
+```asm
+; Fonksiyon imzası: void write_file(fd, buffer, count)
+; C: write_file(5, &buffer, 100);
+
+; Argümanları TERS sırada push et
+push 100           ; 3. parametre (count) - ilk push
+push buffer_ptr    ; 2. parametre (buffer) - ikinci push  
+push 5             ; 1. parametre (fd) - son push (ESP'ye en yakın)
+
+call write_file    ; Fonksiyon çağır (dönüş adresini push'la)
+
+; Fonksiyon dönüştükten sonra stack temizle
+add esp, 12        ; 3 parametreyi kaldır (3 * 4 bayt)
+```
+
+### Örnek 2: Socketcall Argümanları
+
+```asm
+; socketcall(102, socket, 3, args)
+; socket(AF_INET, SOCK_STREAM, 0)
+
+; Socket argümanlarını TERS sırada push et
+push 0             ; proto - 3. arg (ilk push)
+push 1             ; type - 2. arg (ikinci push)
+push 2             ; family - 1. arg (son push, derinlikte)
+mov ecx, esp       ; ECX argümanlara işaret eder
+
+; Şimdi socketcall argümanlarını TERS sırada push et
+push ecx           ; args işaretçi - 2. arg
+push 1             ; call numarası (socket=1) - 1. arg
+mov ecx, esp       ; ECX socketcall argümanlarına işaret eder
+
+mov eax, 102       ; socketcall syscall
+int 0x80
+```
+
+### Örnek 3: cdecl vs stdcall
+
+```asm
+; CDECL (C Declaration - Linux'da varsayılan)
+; Çağıran fonksiyon dönüştükten sonra stack'i temizler
+
+push arg3          ; Argümanları ters sırada push et
+push arg2
+push arg1
+call function      ; Dönüş adresini otomatik push'la
+add esp, 12        ; Çağıran stack'i temizler (3 * 4 bayt)
+
+; Fonksiyon stack'te argümanları alır:
+; [ebp + 16] = arg1 (ilk push, arg stack'in üstü)
+; [ebp + 12] = arg2
+; [ebp + 8]  = arg3 (son push)
+; [ebp + 4]  = dönüş adresi
+; [ebp]      = kaydedilmiş ebp (eğer fonksiyon kaydederese)
+```
+
+### Fonksiyonlarda Stack Çerçevesi Kurulumu
+
+```asm
+my_function:
+    push ebp               ; Eski base pointer'ı kaydet
+    mov ebp, esp          ; Yeni stack çerçevesi kur
+    sub esp, 16           ; Yerel değişkenler için yer ayır
+    
+    ; Şimdi parametrelere erişebilir:
+    mov eax, [ebp + 8]    ; İlk parametre (arg1)
+    mov ebx, [ebp + 12]   ; İkinci parametre (arg2)
+    mov ecx, [ebp + 16]   ; Üçüncü parametre (arg3)
+    
+    ; Yerel değişkenler:
+    mov [ebp - 4], eax    ; Yerel değişken 1
+    mov [ebp - 8], ebx    ; Yerel değişken 2
+    
+    ; ... fonksiyon kodu ...
+    
+    mov esp, ebp          ; Stack pointer'ı geri yükle
+    pop ebp               ; Base pointer'ı geri yükle
+    ret                   ; Çağırıcı'ya dön
+```
+
+### Dönüş Değerleri
+
+```asm
+; Dönüş değeri EAX'e yerleştirilir (64-bit için EDX:EAX)
+
+my_add:
+    mov eax, [ebp + 8]    ; İlk parametre (arg1) yükle
+    add eax, [ebp + 12]   ; İkinci parametre (arg2) ekle
+    
+    ; EAX şimdi sonucu içerir
+    mov esp, ebp
+    pop ebp
+    ret                   ; Çağırıcı EAX'ten sonucu alır
+```
+
+---
+
+## Stack İşlemleri
 
 | No. | Adı | Hex | eax | ebx | ecx | edx | esi | edi |
 |-----|-----|-----|--------|--------|--------|--------|--------|--------|

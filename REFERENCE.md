@@ -1,5 +1,7 @@
 # x86 Assembly Reference Guide
 
+Note: This reference focuses on x86 Assembly, but includes mappings and examples useful when working with accompanying C sources in this repository.
+
 ## 32-bit Registers and Sub-Categories
 
 ### EAX - Accumulator Register

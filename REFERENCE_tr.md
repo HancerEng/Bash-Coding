@@ -1,5 +1,7 @@
 # x86 Assembly Referans Belgesi
 
+Not: Bu referans x86 Assembly üzerine odaklanmıştır, ancak depodaki C kaynaklarıyla çalışırken faydalı olacak eşlemeler ve örnekler içermektedir.
+
 ## 32-bit Registerler ve Alt Kategorileri
 
 ### EAX - Biriktiricinin (Accumulator)

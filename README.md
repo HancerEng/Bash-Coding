@@ -1,6 +1,6 @@
-# 🛠️ Bash-Coding (x86 Assembly)
+# 🛠️ Bash-Coding (Assembly & C)
 
-This repository contains various Linux CLI tools and "Bash-like" commands written from scratch using **x86 Assembly (NASM)**. The goal is to understand system calls and low-level programming on the x86 architecture.
+This repository contains various Linux CLI tools and "Bash-like" commands written from scratch using **x86 Assembly (NASM)** and **C**. Some projects are implemented in Assembly, some in C, and some combine both languages. C sources are included for higher-level implementations and comparison while Assembly sources focus on low-level system call usage on the x86 architecture.
 
 ## � Project Structure
 
@@ -19,12 +19,13 @@ Implements a basic shell interface:
 ## 🚀 Getting Started
 
 ### Prerequisites
-To assemble and link these programs, you need `nasm` and `binutils` installed on your Linux system:
+To assemble, compile and link these programs you generally need `nasm`, `binutils` and a C compiler. On Debian/Ubuntu systems this can be installed with:
 
 ```bash
 sudo apt update
-sudo apt install nasm binutils
+sudo apt install nasm binutils build-essential gcc-multilib
 ```
+(If you only build 64-bit C code, `gcc-multilib` is not required. Adjust packages for your distribution.)
 
 ## 🛠️ Build & Development
 
@@ -66,3 +67,5 @@ Contents include:
 - x86 Linux syscall table
 - Socketcall sub-numbers
 - Syscall usage examples
+
+Note: The reference files focus on x86 Assembly, but also include mappings and notes useful when working with C sources in this repository.
